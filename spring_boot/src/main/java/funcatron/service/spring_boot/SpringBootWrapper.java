@@ -52,6 +52,9 @@ public abstract class SpringBootWrapper implements OperationProvider {
 
     private WebApplicationContext applicationContext;
 
+    @Autowired
+    private ApplicationContext appContext;
+
     private static class SwaggerFinder {
         @Autowired
         private DocumentationCache documentationCache;
@@ -66,6 +69,11 @@ public abstract class SpringBootWrapper implements OperationProvider {
             try {
                 String groupName = Docket.DEFAULT_GROUP_NAME;
                 Documentation documentation = documentationCache.documentationByGroup(groupName);
+
+                for (String k : documentationCache.all().keySet()) {
+                    System.out.println("Group name "+k+"\n\n");
+                }
+
                 if (documentation == null) {
                     return null;
                 }
@@ -86,7 +94,9 @@ public abstract class SpringBootWrapper implements OperationProvider {
     }
 
     public void autowire(Object o) {
-        applicationContext.getAutowireCapableBeanFactory().autowireBean(o);
+        if (null != applicationContext) {
+            applicationContext.getAutowireCapableBeanFactory().autowireBean(o);
+        }
     }
 
     protected MockMvc getMockMvc() {
@@ -211,13 +221,10 @@ return builder.build();
         BiFunction<Void, Logger, Void> originalEndLife =
                 Constants.ConvertEndLifeFunc.apply(findOperation.apply(Constants.EndLifeConst));
 
-        SpringApplication sa = new SpringApplication(classList());
-
-        WebApplicationContext ac = (WebApplicationContext) sa.run();
-
-        this.applicationContext = ac;
+        System.out.println("ONE!!!\n\n");
 
         addOperation.apply(Constants.GetSwaggerConst, (x, logger2) -> {
+
             HashMap<Object, Object> ret = new HashMap<>();
 
             ret.put("type", "json");
@@ -232,12 +239,31 @@ return builder.build();
         addOperation.apply(Constants.DispatcherForConst, (info, logger2) -> metaService(info, logger2));
 
 
+
+        System.out.println("Two....\n\n");
+
+        if (null != appContext) {
+            this.applicationContext = (WebApplicationContext) appContext;
+        } else {
+
+            SpringApplication sa = new SpringApplication(classList());
+
+            System.out.println("Two a....\n\n");
+
+            WebApplicationContext ac = (WebApplicationContext) sa.run();
+
+            System.out.println("Two b....\n\n");
+
+            this.applicationContext = ac;
+
+            System.out.println("Three....\n\n");
+        }
+
         addOperation.apply(Constants.EndLifeConst, (x, logger2) -> {
-            ((ConfigurableApplicationContext) ac).close();
+            ((ConfigurableApplicationContext) this.applicationContext).close();
             originalEndLife.apply(null, logger2);
             return null;
         });
-
 
     }
 }
